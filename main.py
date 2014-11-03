@@ -6,6 +6,7 @@ import sys
 from scipy.io import wavfile
 from scipy.fftpack import fft, ifft
 import pylab as plt
+import os
 
 def open_file(file):
     '''
@@ -23,7 +24,7 @@ def open_file(file):
 
     return trans_data
 
-def get_features(file, sound_type = None, rank_type='mels'):
+def get_features(file, rank_type='mels'):
     '''
     Input: file: String with the file location of a sound,
            sound_type: String with the label for the data,
@@ -52,7 +53,21 @@ def get_features(file, sound_type = None, rank_type='mels'):
         else:
             bucket_scores[rank_type['bucket'+str(i)]] = sum(sound_fft[x-1:x])
 
+    sound_type = file.split('/')[-2]
     bucket_scores['type'] = sound_type
 
     return bucket_scores
+
+def build_feature_matrix(data_location):
+    sounds = os.listdir(data_location)
+
+    feature_list = []
+    for sound in sounds:
+        files = os.listdir(data_location+ '/' + sound)
+        for a_file in files:
+            feature_list.append(get_features(data_location+ '/' + sound + '/' +a_file))
+
+    return feature_list
+
+
 
