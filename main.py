@@ -8,7 +8,7 @@ from scipy.fftpack import fft, ifft
 import pylab as plt
 import os
 
-def open_file(file):
+def open_file(file_name):
     '''
     Input: String with the file location of a sound
 
@@ -19,12 +19,12 @@ def open_file(file):
 
     '''
 
-    fs, data = wavfile.read(file)
+    fs, data = wavfile.read(file_name)
     trans_data =[(ele/2**8.)*2-1 for ele in data]
 
     return trans_data
 
-def get_features(file, rank_type='mels'):
+def get_features(file_name, rank_type='mels'):
     '''
     Input: file: String with the file location of a sound,
            sound_type: String with the label for the data,
@@ -41,33 +41,49 @@ def get_features(file, rank_type='mels'):
     #Start and finish for every bucket in mel's distribution
     mels = [1,200,400,630,920,1270,1720,2320,3200,6400]
     
-    sound = open_file(file):
+    sound = open_file(file_name)
     sound_fft = fft(sound)
+    sound_fft = abs(sound_fft[:(len(sound_fft)/2)])
     
     bucket_scores={}
 
-    for i,x in enumerate(rank_type):
-        print i
+    for i,x in enumerate(mels):
         if 1 == 0:
             continue
         else:
-            bucket_scores[rank_type['bucket'+str(i)]] = sum(sound_fft[x-1:x])
+            name = 'bucket'+str(i)
+            bucket_scores[name] = sum(sound_fft[x-1:x])
 
-    sound_type = file.split('/')[-2]
+    sound_type = file_name.split('/')[-2]
     bucket_scores['type'] = sound_type
 
     return bucket_scores
 
 def build_feature_matrix(data_location):
+    '''
+    Input: A string that is the location of a folder that contains folders of different sounds
+
+    Output: A list of dictionaries that correspond to each sound within the specified folder
+
+    A function to create a feature list of all the sounds
+    '''
+
     sounds = os.listdir(data_location)
 
     feature_list = []
     for sound in sounds:
+        if sound == '.DS_Store':
+            continue
         files = os.listdir(data_location+ '/' + sound)
         for a_file in files:
             feature_list.append(get_features(data_location+ '/' + sound + '/' +a_file))
 
     return feature_list
+
+if __name__ == "__main__":
+    sound_data = build_feature_matrix('/Users/CPinkston/Documents/Zipfian/Project/Wavs')
+    df = pd.DataFrame(sound_data)
+    print df
 
 
 
