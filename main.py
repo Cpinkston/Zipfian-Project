@@ -7,6 +7,7 @@ from scipy.io import wavfile
 from scipy.fftpack import fft, ifft
 import pylab as plt
 import os
+from sklearn.ensemble import RandomForestClassifier
 
 def open_file(file_name):
     '''
@@ -80,10 +81,29 @@ def build_feature_matrix(data_location):
 
     return feature_list
 
-if __name__ == "__main__":
-    sound_data = build_feature_matrix('/Users/CPinkston/Documents/Zipfian/Project/Wavs')
+def fit_model(folder):
+    '''
+    Input: A string that is the location of a folder that contains folders of different sounds
+    
+    Output: A fitted model to predict a sound
+
+    This will take in test data to create a model to make predictions
+    '''    
+
+    sound_data = build_feature_matrix(folder)
     df = pd.DataFrame(sound_data)
-    print df
+    y = df.pop('type')
+
+    forest = RandomForestClassifier(n_estimators=20)
+    forest.fit(df.values, y.values)
+    return forest
 
 
+
+if __name__ == "__main__":
+    model = fit_model('/Users/CPinkston/Documents/Zipfian/Project/Wavs')
+    test = build_feature_matrix('/Users/CPinkston/Documents/Zipfian/Project/TestWavs')
+    df = pd.DataFrame(test)
+    y = df.pop('type')
+    print model.predict(df.values)
 
