@@ -9,6 +9,7 @@ import pylab as plt
 import os
 from sklearn.ensemble import RandomForestClassifier
 import matplotlib.animation as animation
+from scipy.linalg import norm
 
 def open_file(file_name):
     '''
@@ -46,9 +47,8 @@ def get_features(file_name, rank_type='mels'):
     sound = open_file(file_name)
     sound_fft = fft(sound)
     sound_fft = abs(sound_fft[:(len(sound_fft)/2)])
-    max_value = max(sound_fft)
-    print max_value
-    sound_fft = sound_fft/max_value
+    norm_value = norm(sound_fft)
+    sound_fft = sound_fft/norm_value
     
     bucket_scores={}
 
@@ -135,4 +135,4 @@ if __name__ == "__main__":
     print model.predict(df.values)
     print model.predict_proba(df.values)
 
-    build_feature_bar('/Users/CPinkston/Documents/Zipfian/Project/Wavs', target='U')
+    build_feature_bar('/Users/CPinkston/Documents/Zipfian/Project/Wavs', target='A')
