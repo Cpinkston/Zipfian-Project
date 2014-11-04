@@ -8,6 +8,7 @@ from scipy.fftpack import fft, ifft
 import pylab as plt
 import os
 from sklearn.ensemble import RandomForestClassifier
+import matplotlib.animation as animation
 
 def open_file(file_name):
     '''
@@ -34,7 +35,7 @@ def get_features(file_name, rank_type='mels'):
 
 
     Output: Dictionary containing all the bucket values and label for
-    for the data
+            for the data
 
     Takes a file name and converts it to its feature row
     
@@ -77,6 +78,8 @@ def build_feature_matrix(data_location):
             continue
         files = os.listdir(data_location+ '/' + sound)
         for a_file in files:
+            if a_file == '.DS_Store':
+                break
             feature_list.append(get_features(data_location+ '/' + sound + '/' +a_file))
 
     return feature_list
@@ -94,9 +97,30 @@ def fit_model(folder):
     df = pd.DataFrame(sound_data)
     y = df.pop('type')
 
-    forest = RandomForestClassifier(n_estimators=20)
+    forest = RandomForestClassifier(n_estimators=100,criterion='entropy', max_features='log2', oob_score=True)
     forest.fit(df.values, y.values)
     return forest
+
+def build_feature_bar(folder, target = 'A'):
+    '''
+    Input: A String containing the location of your training data,
+           A string that corresponds to the target for the graph 
+
+    Output: None, Builds a matplotlib graph
+
+    This builds the background of a matplotlib graph that will show a particular sound
+    '''
+
+    sound_data = build_feature_matrix(folder)
+    df = pd.DataFrame(sound_data)
+    df = df[df['type'] == target]
+    y = df.pop('type')
+
+    aggre_A = np.mean(df.values, axis = 0)
+
+    plt.bar([0,1,2,3,4,5,6,7,8,9], aggre_A, width=0.8)
+    plt.show()
+    plt.title('Aggregate A')
 
 
 
@@ -106,4 +130,6 @@ if __name__ == "__main__":
     df = pd.DataFrame(test)
     y = df.pop('type')
     print model.predict(df.values)
+    print model.predict_proba(df.values)
 
+    build_feature_bar('/Users/CPinkston/Documents/Zipfian/Project/Wavs')
