@@ -53,11 +53,11 @@ def get_features(file_name, rank_type='mels'):
     bucket_scores={}
 
     for i,x in enumerate(mels):
-        if 1 == 0:
+        if i == 0:
             continue
         else:
             name = 'bucket'+str(i)
-            bucket_scores[name] = sum(sound_fft[x-1:x])
+            bucket_scores[name] = sum(sound_fft[mels[i-1]:x])
 
     sound_type = file_name.split('/')[-2]
     bucket_scores['type'] = sound_type
@@ -121,7 +121,7 @@ def build_feature_bar(folder, target = 'A'):
 
     aggre_A = np.mean(df.values, axis = 0)
 
-    plt.bar([0,1,2,3,4,5,6,7,8,9], aggre_A, width=0.8)
+    plt.bar([1,2,3,4,5,6,7,8,9], aggre_A, width=0.8)
     plt.show()
     plt.title('Aggregate A')
 
@@ -135,4 +135,4 @@ if __name__ == "__main__":
     print model.predict(df.values)
     print model.predict_proba(df.values)
 
-    build_feature_bar('/Users/CPinkston/Documents/Zipfian/Project/Wavs', target='A')
+    build_feature_bar('/Users/CPinkston/Documents/Zipfian/Project/Wavs', target='Oh')
