@@ -94,13 +94,15 @@ def main():
 
     p = pyaudio.PyAudio()
 
+    frames = None
+
     MAX_y = 2.0**(p.get_sample_size(FORMAT) * 8 - 1)
 
     stream = p.open(format=FORMAT, channels=CHANNELS,rate=RATE,\
         input=True,frames_per_buffer=BUF_SIZE)
 
     ani = animation.FuncAnimation(fig, animate, frames,\
-        init_func=lambda: init(line), fargs=(line, stream, wf, MAX_y),\
+        init_func=lambda: init(line), fargs=(line, stream, MAX_y),\
         interval=1000.0/FPS, blit=False)
 
     plt.show()
