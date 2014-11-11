@@ -2,12 +2,15 @@
 import pyaudio
 from numpy import zeros, linspace, short, fromstring, transpose, array
 from scipy import fft
+from sklearn.ensemble import RandomForestClassifier
+import pandas as pd
 
 # Enthought library imports
 from enable.api import Window, Component, ComponentEditor
-from traits.api import HasTraits, Instance, List
+from traits.api import HasTraits, Instance, List, Enum
 from traitsui.api import Item, Group, View, Handler
 from pyface.timer.api import Timer
+#from enthought.traits.ui.menu import OKButton, CancelButton
 
 # Chaco imports
 from chaco.api import (Plot, ArrayPlotData, HPlotContainer, VPlotContainer,
@@ -15,9 +18,22 @@ from chaco.api import (Plot, ArrayPlotData, HPlotContainer, VPlotContainer,
 
 #Atributes for the stream    
 NUM_SAMPLES = 1024
-SAMPLING_RATE = 11025
+SAMPLING_RATE = 22050 #11025
 SPECTROGRAM_LENGTH = 50
 
+#import model
+bucket_names = ['bucket1','bucket2','bucket3','bucket4','bucket5','bucket6','bucket7','bucket8','label']
+df = pd.read_csv("/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/data.csv",names=bucket_names)
+y=df.pop('label').values
+X=df.values
+forest = RandomForestClassifier(n_estimators=100,criterion='entropy', max_features='log2', oob_score=True)
+forest.fit(X,y)
+
+background_dict = { 'Ae' : [50,0,0,0,0,0,0,0],\
+                    'Eh' : [0,50,0,0,0,0,0,0],\
+                    'Ee' : [0,0,50,0,0,0,0,0],\
+                    'Oh' : [0,0,0,50,0,0,0,0],\
+                    'Oo' : [0,0,0,0,50,0,0,0]}
 
 def get_audio_data():
     pa = pyaudio.PyAudio()
@@ -29,24 +45,29 @@ def get_audio_data():
     sound_fft = abs(fft(normalized_data))[:NUM_SAMPLES/2]
     
     bucket_scores=[]
-    mels = array([1,200,400,630,920,1270,1720,2320,3200,6400])/4
-
+    mels = array([1,200,400,630,920,1270,1720,2320,3200])/6.25
+    
+    plot_type = popup.plot_type
+    
     for i,x in enumerate(mels):
         if i == 0:
             continue
         else:
             bucket_scores.append(sum(sound_fft[mels[i-1]:x]))
-    
-    return (array(bucket_scores), normalized_data)
+    classification = ['Spectrum']
+    if bucket_scores[0] > 10:
+        classification =  forest.predict(bucket_scores)
+        
+    return (array(bucket_scores), normalized_data, classification, plot_type)
 
 def _create_plot_component(obj):
     # Setup the spectrum plot
     
-    frequencies = linspace(0.0, 9, num=9)
+    frequencies = linspace(0.0, 8, num=8)
     obj.spectrum_data = ArrayPlotData(frequency=frequencies)
-    empty_amplitude = zeros(9)
+    empty_amplitude = zeros(8)
     obj.spectrum_data.set_data('amplitude', empty_amplitude)
-    background = array([3.5,.5,.25,.5,1,.5,.1,0,0])*20
+    background = array([3.5,.5,.25,.5,1,.5,.1,0])*20
     obj.spectrum_data.set_data('background', background)
 
     obj.spectrum_plot = Plot(obj.spectrum_data)
@@ -72,8 +93,10 @@ def _create_plot_component(obj):
 class TimerController(HasTraits):
 
     def onTimer(self, *args):
-        spectrum, time = get_audio_data()
+        spectrum, time, classification, plot_type = get_audio_data()
         self.spectrum_data.set_data('amplitude', spectrum)
+        self.spectrum_plot.title = classification[0]
+        self.spectrum_data.set_data('background',background_dict[plot_type])
         #spec_data = self.spectrogram_plot.values[1:] + [spectrum]
         #self.spectrogram_plot.values = spec_data
         self.spectrum_plot.request_redraw()
@@ -89,6 +112,7 @@ class DemoHandler(Handler):
 
         info.object.timer.Stop()
         return
+    
 
 # Attributes to use for the plot view.
 size = (900,850)
@@ -101,12 +125,15 @@ class Demo(HasTraits):
     controller = Instance(TimerController, ())
 
     timer = Instance(Timer)
+    
+    plot_type = Enum("Ae", "Eh", "Ee", "Oh", "Oo")
 
     traits_view = View(
                     Group(
                         Item('plot', editor=ComponentEditor(size=size),
                              show_label=False),
                         orientation = "vertical"),
+                        Item(name='plot_type'),
                     resizable=True, title=title,
                     width=size[0], height=size[1]+25,
                     handler=DemoHandler
@@ -125,7 +152,7 @@ class Demo(HasTraits):
     def configure_traits(self, *args, **kws):
         # Start up the timer! We should do this only when the demo actually
         # starts and not when the demo object is created.
-        self.timer = Timer(20, self.controller.onTimer)
+        self.timer = Timer(10, self.controller.onTimer)
         return super(Demo, self).configure_traits(*args, **kws)
 
 popup = Demo()
