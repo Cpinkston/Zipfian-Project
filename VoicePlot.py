@@ -4,6 +4,7 @@ from numpy import zeros, linspace, short, fromstring, transpose, array
 from scipy import fft
 from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
+import cPickle as pickle
 
 # Enthought library imports
 from enable.api import Window, Component, ComponentEditor
@@ -21,14 +22,21 @@ NUM_SAMPLES = 1024
 SAMPLING_RATE = 22050 #11025
 SPECTROGRAM_LENGTH = 50
 
-#import model
-bucket_names = ['bucket1','bucket2','bucket3','bucket4','bucket5','bucket6','bucket7','bucket8','label']
-df = pd.read_csv("/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/data.csv",names=bucket_names)
-y=df.pop('label').values
-X=df.values
-forest = RandomForestClassifier(n_estimators=100,criterion='entropy', max_features='log2', oob_score=True)
-forest.fit(X,y)
+forest = pickle.load(open('/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/model.p'))
 
+#import model
+#bucket_names = ['bucket1','bucket2','bucket3','bucket4','bucket5','bucket6','bucket7','bucket8','label']
+#df = pd.read_csv("/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/data.csv",names=bucket_names)
+#y=df.pop('label').values
+#X=df.values
+#forest = RandomForestClassifier(n_estimators=100,criterion='entropy', max_features='log2', oob_score=True)
+#forest.fit(X,y)
+
+# Attributes to use for the plot view.
+size = (900,850)
+title = "Speech Visualizer"
+
+# Visual guide for sound
 background_dict = { 'Ae' : [50,0,0,0,0,0,0,0],\
                     'Eh' : [0,50,0,0,0,0,0,0],\
                     'Ee' : [0,0,50,0,0,0,0,0],\
@@ -113,10 +121,6 @@ class DemoHandler(Handler):
         info.object.timer.Stop()
         return
     
-
-# Attributes to use for the plot view.
-size = (900,850)
-title = "Audio Spectrum Waterfall"
 
 class Demo(HasTraits):
 
