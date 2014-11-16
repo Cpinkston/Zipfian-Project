@@ -1,6 +1,6 @@
 # Major library imports
 import pyaudio
-from numpy import zeros, linspace, short, fromstring, transpose, array
+from numpy import zeros, linspace, short, fromstring, transpose, array, ones
 from scipy import fft
 from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
@@ -8,10 +8,10 @@ import cPickle as pickle
 
 # Enthought library imports
 from enable.api import Window, Component, ComponentEditor
-from traits.api import HasTraits, Instance, List, Enum
+from traits.api import HasTraits, Instance, List, Enum, Str
 from traitsui.api import Item, Group, View, Handler
 from pyface.timer.api import Timer
-#from enthought.traits.ui.menu import OKButton, CancelButton
+from enthought.traits.ui.menu import OKButton, CancelButton
 
 # Chaco imports
 from chaco.api import (Plot, ArrayPlotData, HPlotContainer, VPlotContainer,
@@ -78,6 +78,17 @@ background_dict = {'AA':[ 35.81397578,  45.01631462,  56.12467144,  12.1484378 ,
           0.98458783,   0.75937742,   0.83373466,   0.63936673,
           0.67474447,   0.57706845,   0.62018357,   0.58136584,
           0.74068797,   0.61835592,   0.84554567,   0.66147225]}
+          
+#word_list = {'hello':['HH','EH','L','OW'],
+#            'world':['W','ER','L','D']}
+            
+word_list = {'hello':['EH','OW'],
+            'world':['ER']}
+            
+sound_fft_bank = {'EH':array(ones(NUM_SAMPLES/2)*100),
+                'OW':array(ones(NUM_SAMPLES/2)*300),
+                'ER':array(ones(NUM_SAMPLES/2)*600)}
+#print sound_fft_bank['EH']
 
 def get_audio_data():
     pa = pyaudio.PyAudio()
@@ -94,6 +105,14 @@ def get_audio_data():
     
     
     plot_type = popup.plot_type
+    word = popup.word
+    word_shape = [zeros(NUM_SAMPLES/2) for i in xrange(SPECTROGRAM_LENGTH)]
+    
+    if word in word_list:
+        for i, sound in enumerate(word_list[word]):
+            word_shape[i*3] = sound_fft_bank[sound]
+            word_shape[(i*3)+1] = sound_fft_bank[sound]
+            word_shape[(i*3)+2] = sound_fft_bank[sound]
     
     for i,x in enumerate(mels):
         if i == 0:
@@ -104,7 +123,7 @@ def get_audio_data():
     if bucket_scores[0] > 5:
         classification =  forest.predict(bucket_scores)
         
-    return (array(bucket_scores), normalized_data, classification, plot_type)
+    return (array(bucket_scores), normalized_data, classification, plot_type, sound_fft, word_shape)
 
 def _create_plot_component(obj):
     # Setup the spectrum plot
@@ -113,7 +132,7 @@ def _create_plot_component(obj):
     obj.spectrum_data = ArrayPlotData(frequency=frequencies)
     empty_amplitude = zeros(16)##
     obj.spectrum_data.set_data('amplitude', empty_amplitude)
-    background = array([50,0,0,0,0,0,0,0,50,0,0,0,0,0,0,0])*20
+    background = array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])*20
     obj.spectrum_data.set_data('background', background)
 
     obj.spectrum_plot = Plot(obj.spectrum_data)
@@ -128,23 +147,69 @@ def _create_plot_component(obj):
     obj.spectrum_plot.index_axis.title = 'Frequency (hz)'
     obj.spectrum_plot.value_axis.title = 'Amplitude'
     
+    # Word Plots
+    # Setup the unseen spectrum plot
+    dum_frequencies = linspace(0.0, float(SAMPLING_RATE)/2, num=NUM_SAMPLES/2)
+    obj.dum_spectrum_data = ArrayPlotData(frequency=dum_frequencies)
+    dum_empty_amplitude = zeros(NUM_SAMPLES/2)
+    obj.dum_spectrum_data.set_data('amplitude', dum_empty_amplitude)
+
+    obj.dum_spectrum_plot = Plot(obj.dum_spectrum_data)
+    spec_renderer = obj.dum_spectrum_plot.plot(("frequency", "amplitude"), name="Spectrum",
+                           color="red")[0]
+    
+    values = [zeros(NUM_SAMPLES/2) for i in xrange(SPECTROGRAM_LENGTH)]
+    
+    p = WaterfallRenderer(index = spec_renderer.index, values = values,
+            index_mapper = LinearMapper(range = obj.dum_spectrum_plot.index_mapper.range),
+            value_mapper = LinearMapper(range = DataRange1D(low=0, high=SPECTROGRAM_LENGTH)),
+            y2_mapper = LinearMapper(low_pos=0, high_pos=8,
+                            range=DataRange1D(low=0, high=15)),
+            )
+    spectrogram_plot = p
+    obj.spectrogram_plot = p
+    dummy = Plot()
+    dummy.padding = 50
+    dummy.index_axis.mapper.range = p.index_mapper.range
+    dummy.index_axis.title = "Frequency (hz)"
+    dummy.add(p)
+    
+    values2 = [zeros(NUM_SAMPLES/2) for i in xrange(SPECTROGRAM_LENGTH)]
+    p2 = WaterfallRenderer(index = spec_renderer.index, values = values2,
+            index_mapper = LinearMapper(range = obj.dum_spectrum_plot.index_mapper.range),
+            value_mapper = LinearMapper(range = DataRange1D(low=0, high=SPECTROGRAM_LENGTH)),
+            y2_mapper = LinearMapper(low_pos=0, high_pos=8,
+                            range=DataRange1D(low=0, high=15)),
+            )
+    spectrogram_plot2 = p2
+    obj.spectrogram_plot2 = p2
+    dummy2 = Plot()
+    dummy2.padding = 50
+    dummy2.index_axis.mapper.range = p.index_mapper.range
+    dummy2.index_axis.title = "Frequency (hz)"
+    dummy2.add(p2)
+    
+    
     container = HPlotContainer()
-    container.add(obj.spectrum_plot)
+    container.add(dummy)
+    container.add(dummy2)
 
     c2 = VPlotContainer()
     c2.add(container)
+    c2.add(obj.spectrum_plot)
 
     return c2
 
 class TimerController(HasTraits):
 
     def onTimer(self, *args):
-        spectrum, time, classification, plot_type = get_audio_data()
+        spectrum, time, classification, plot_type, sound_fft, word_shape = get_audio_data()
         self.spectrum_data.set_data('amplitude', spectrum)
         self.spectrum_plot.title = classification[0]
         self.spectrum_data.set_data('background',background_dict[plot_type])
-        #spec_data = self.spectrogram_plot.values[1:] + [spectrum]
-        #self.spectrogram_plot.values = spec_data
+        spec_data = self.spectrogram_plot.values[1:] + [sound_fft]
+        self.spectrogram_plot.values = spec_data
+        self.spectrogram_plot2.values = word_shape
         self.spectrum_plot.request_redraw()
 
 
@@ -158,6 +223,60 @@ class DemoHandler(Handler):
         info.object.timer.Stop()
     
 
+class WaterfallRenderer(LinePlot):
+
+    # numpy arrays of the same length
+    values = List(args=[])
+
+    # Maps each array in values into a contrained, short screen space
+    y2_mapper = Instance(AbstractMapper)
+
+    _cached_data_pts = List()
+    _cached_screen_pts = List()
+
+    def _gather_points(self):
+        if not self._cache_valid:
+            if not self.index or len(self.values) == 0:
+                return
+
+            index = self.index.get_data()
+            values = self.values
+
+            numindex = len(index)
+            if numindex == 0 or all(len(v)==0 for v in values) or all(numindex != len(v) for v in values):
+                self._cached_data_pts = []
+                self._cache_valid = True
+
+            self._cached_data_pts = [transpose(array((index, v))) for v in values]
+            self._cache_value = True
+        return
+
+    def get_screen_points(self):
+        self._gather_points()
+        return [self.map_screen(pts, i) for i, pts in enumerate(self._cached_data_pts)]
+
+    def map_screen(self, data_array, data_offset=None):
+        """ data_offset, if provided, is a float that will be mapped
+        into screen space using self.value_mapper and then added to
+        mapping data_array with y2_mapper.  If data_offset is not
+        provided, then y2_mapper is used.
+        """
+        if len(data_array) == 0:
+            return []
+        x_ary, y_ary = transpose(data_array)
+        sx = self.index_mapper.map_screen(x_ary)
+        if data_offset is not None:
+            dy = self.value_mapper.map_screen(data_offset)
+            sy = self.y2_mapper.map_screen(y_ary) + dy
+        else:
+            sy = self.value_mapper.map_screen(y_ary)
+
+        if self.orientation == "h":
+            return transpose(array((sx, sy)))
+        else:
+            return transpose(array((sy, sx)))
+
+
 class Demo(HasTraits):
 
     plot = Instance(Component)
@@ -166,8 +285,8 @@ class Demo(HasTraits):
 
     timer = Instance(Timer)
     
-    plot_type = Enum("AA", "AE","AH", "AO", "EH", "ER", "EY", "IH", "IY", "OW", 
-    "UH", "UW")
+    plot_type = Enum("AA", "AE","AH", "AO", "EH", "ER", "EY", "IH", "IY", "OW", "UH", "UW")
+    word = Str("hello")
 
     traits_view = View(
                     Group(
@@ -175,6 +294,7 @@ class Demo(HasTraits):
                              show_label=False),
                         orientation = "vertical"),
                         Item(name='plot_type'),
+                        Item(name='word'),
                     resizable=True, title=title,
                     width=size[0], height=size[1]+25,
                     handler=DemoHandler
