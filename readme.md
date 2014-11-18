@@ -1,4 +1,4 @@
-##Visualizing digital signal processing in real time
+##Visualizing The Voice
 ####Overview
 The goal for this project is to visualize the human voice and give guidance to those seeking to train their voice. The current program is trained on 39 arpabet (http://en.wikipedia.org/wiki/Arpabet) phonemes that make up North American English. The program also contains over 130,000 words that can be built out into their spectral envelope for reference.
 
