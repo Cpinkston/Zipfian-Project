@@ -22,12 +22,18 @@ NUM_SAMPLES = 1024
 SAMPLING_RATE = 22050 #11025
 SPECTROGRAM_LENGTH = 50
 
-#import model
-forest = pickle.load(open('/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/mono_model.p'))
-
 # Attributes to use for the plot view.
 size = (900,850)
 title = "Speech Visualizer"
+
+#import models
+mono = pickle.load(open('/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/mono_model.p'))
+stops = pickle.load(open('/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/stops_model.p'))
+dip = pickle.load(open('/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/dip_model.p'))
+other = pickle.load(open('/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/other_model.p'))
+frics = pickle.load(open('/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/fricatives_model.p'))
+
+forest = mono
 
 # Visual guide for sound
 background_dict = {'AA':[ 35.81397578,  45.01631462,  56.12467144,  12.1484378 ,
@@ -79,15 +85,10 @@ background_dict = {'AA':[ 35.81397578,  45.01631462,  56.12467144,  12.1484378 ,
           0.67474447,   0.57706845,   0.62018357,   0.58136584,
           0.74068797,   0.61835592,   0.84554567,   0.66147225]}
           
-#word_list = {'hello':['HH','EH','L','OW'],
-#            'world':['W','ER','L','D']}
+word_list = pickle.load(open('/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/word_dict.p'))
             
-word_list = {'hello':['EH','OW'],
-            'world':['ER']}
-            
-sound_fft_bank = {'EH':array(ones(NUM_SAMPLES/2)*100),
-                'OW':array(ones(NUM_SAMPLES/2)*300),
-                'ER':array(ones(NUM_SAMPLES/2)*600)}
+sound_fft_bank = pickle.load(open('/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/spectro_dict.p'))
+
 #print sound_fft_bank['EH']
 
 def get_audio_data():
@@ -105,25 +106,36 @@ def get_audio_data():
     
     
     plot_type = popup.plot_type
-    word = popup.word
-    word_shape = [zeros(NUM_SAMPLES/2) for i in xrange(SPECTROGRAM_LENGTH)]
+    word = popup.word.upper()
+    word_shape = [zeros(NUM_SAMPLES/4) for i in xrange(SPECTROGRAM_LENGTH)]
+    pronunciation = ''
+     
     
     if word in word_list:
         for i, sound in enumerate(word_list[word]):
-            word_shape[i*3] = sound_fft_bank[sound]
-            word_shape[(i*3)+1] = sound_fft_bank[sound]
-            word_shape[(i*3)+2] = sound_fft_bank[sound]
+            word_shape[45-(i*3)] = sound_fft_bank[word_list[word][-(i+1)]]
+            word_shape[45-((i*3)+1)] = sound_fft_bank[word_list[word][-(i+1)]]
+            word_shape[45-((i*3)+2)] = sound_fft_bank[word_list[word][-(i+1)]]
+            pronunciation = pronunciation + sound + " "
+        pronunciation = [pronunciation]
     
     for i,x in enumerate(mels):
         if i == 0:
             continue
         else:
             bucket_scores.append(sum(sound_fft[mels[i-1]:x]))
-    classification = ['Spectrum']
+    
     if bucket_scores[0] > 5:
         classification =  forest.predict(bucket_scores)
+        if pronunciation == '':
+            pronunciation = classification
+        else:
+            pronunciation = pronunciation[0] + '--' + classification
         
-    return (array(bucket_scores), normalized_data, classification, plot_type, sound_fft, word_shape)
+    if pronunciation == '':
+        pronunciation = ['Word Visualizer']
+        
+    return (array(bucket_scores), normalized_data, pronunciation, plot_type, sound_fft[:len(sound_fft)/2], word_shape)
 
 def _create_plot_component(obj):
     # Setup the spectrum plot
@@ -143,22 +155,22 @@ def _create_plot_component(obj):
     obj.spectrum_plot.title = "Spectrum"
     spec_range = obj.spectrum_plot.plots.values()[0][0].value_mapper.range
     spec_range.low = 0.0
-    spec_range.high = 50.0
+    spec_range.high = 75.0
     obj.spectrum_plot.index_axis.title = 'Frequency (hz)'
     obj.spectrum_plot.value_axis.title = 'Amplitude'
     
     # Word Plots
     # Setup the unseen spectrum plot
-    dum_frequencies = linspace(0.0, float(SAMPLING_RATE)/2, num=NUM_SAMPLES/2)
+    dum_frequencies = linspace(0.0, float(SAMPLING_RATE)/4, num=NUM_SAMPLES/4)
     obj.dum_spectrum_data = ArrayPlotData(frequency=dum_frequencies)
-    dum_empty_amplitude = zeros(NUM_SAMPLES/2)
+    dum_empty_amplitude = zeros(NUM_SAMPLES/4)
     obj.dum_spectrum_data.set_data('amplitude', dum_empty_amplitude)
 
     obj.dum_spectrum_plot = Plot(obj.dum_spectrum_data)
     spec_renderer = obj.dum_spectrum_plot.plot(("frequency", "amplitude"), name="Spectrum",
                            color="red")[0]
     
-    values = [zeros(NUM_SAMPLES/2) for i in xrange(SPECTROGRAM_LENGTH)]
+    values = [zeros(NUM_SAMPLES/4) for i in xrange(SPECTROGRAM_LENGTH)]
     
     p = WaterfallRenderer(index = spec_renderer.index, values = values,
             index_mapper = LinearMapper(range = obj.dum_spectrum_plot.index_mapper.range),
@@ -169,12 +181,13 @@ def _create_plot_component(obj):
     spectrogram_plot = p
     obj.spectrogram_plot = p
     dummy = Plot()
+    dummy.title = "Current Spectral Envelope" 
     dummy.padding = 50
     dummy.index_axis.mapper.range = p.index_mapper.range
     dummy.index_axis.title = "Frequency (hz)"
     dummy.add(p)
     
-    values2 = [zeros(NUM_SAMPLES/2) for i in xrange(SPECTROGRAM_LENGTH)]
+    values2 = [zeros(NUM_SAMPLES/4) for i in xrange(SPECTROGRAM_LENGTH)]
     p2 = WaterfallRenderer(index = spec_renderer.index, values = values2,
             index_mapper = LinearMapper(range = obj.dum_spectrum_plot.index_mapper.range),
             value_mapper = LinearMapper(range = DataRange1D(low=0, high=SPECTROGRAM_LENGTH)),
@@ -184,6 +197,7 @@ def _create_plot_component(obj):
     spectrogram_plot2 = p2
     obj.spectrogram_plot2 = p2
     dummy2 = Plot()
+    dummy2.title = "Target Spectral Envelope" 
     dummy2.padding = 50
     dummy2.index_axis.mapper.range = p.index_mapper.range
     dummy2.index_axis.title = "Frequency (hz)"
@@ -211,6 +225,7 @@ class TimerController(HasTraits):
         self.spectrogram_plot.values = spec_data
         self.spectrogram_plot2.values = word_shape
         self.spectrum_plot.request_redraw()
+
 
 
 class DemoHandler(Handler):
@@ -286,6 +301,9 @@ class Demo(HasTraits):
     timer = Instance(Timer)
     
     plot_type = Enum("AA", "AE","AH", "AO", "EH", "ER", "EY", "IH", "IY", "OW", "UH", "UW")
+    
+    #model_type = Enum('Fricative',
+    
     word = Str("hello")
 
     traits_view = View(
