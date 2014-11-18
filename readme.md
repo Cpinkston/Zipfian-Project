@@ -5,7 +5,7 @@ The goal for this project is to visualize the human voice and give guidance to t
 ####The two stages of training a voice
 1. Select a sound to create in the plot type drop down box. This will update the top graph giving a reference point of how your voice should look when it is displayed. When you attempt to speak your sound will update over the top of the refernce for you to comare your sound in real time. The program will also give you it's closest guess to the sound that you are creating. When you feel comfortable with a few sounds you can move on to step two
 
-1.Now you can attempt to combine the sounds to create a whole word. When you type a valid word in the text box the target spectral envelope graph will update on the bottom right to show the approximate word silhouette. The sounds for that word will update at the top of the screen. Then you can step through each sound which udate the graph on the bottom right. After you have said the sounds that make up the target word you can compare your sounds to the sillhouette. If there is a sound that seems off take that sound back to step one.
+2. Now you can attempt to combine the sounds to create a whole word. When you type a valid word in the text box the target spectral envelope graph will update on the bottom right to show the approximate word silhouette. The sounds for that word will update at the top of the screen. Then you can step through each sound which udate the graph on the bottom right. After you have said the sounds that make up the target word you can compare your sounds to the sillhouette. If there is a sound that seems off take that sound back to step one.
 
 ##Files
 ###VoicePlot.py
