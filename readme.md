@@ -2,6 +2,8 @@
 ####Overview
 The goal for this project is to visualize the human voice and give guidance to those seeking to train their voice. The current program is trained on 39 arpabet (http://en.wikipedia.org/wiki/Arpabet) phonemes that make up North American English. The program also contains over 130,000 words that can be built out into their spectral envelope for reference.
 
+I have recorded a video walking through the program that can be viewed at the following link https://www.youtube.com/watch?v=j8emmhmWHv4
+
 ####The two stages of training a voice
 1. Select a sound to create in the plot type drop down box. This will update the top graph giving a reference point of how your voice should look when it is displayed. When you attempt to speak your sound will update over the top of the refernce for you to comare your sound in real time. The program will also give you it's closest guess to the sound that you are creating. When you feel comfortable with a few sounds you can move on to step two
 
