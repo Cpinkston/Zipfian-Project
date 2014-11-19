@@ -89,8 +89,6 @@ word_list = pickle.load(open('/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech
             
 sound_fft_bank = pickle.load(open('/Users/CPinkston/Documents/Zipfian/FreedomOfSpeech/data/spectro_dict.p'))
 
-#print sound_fft_bank['EH']
-
 def get_audio_data():
     pa = pyaudio.PyAudio()
     stream = pa.open(format=pyaudio.paInt16, channels=1, rate=SAMPLING_RATE,
@@ -101,8 +99,8 @@ def get_audio_data():
     sound_fft = abs(fft(normalized_data))[:NUM_SAMPLES/2]
     
     bucket_scores=[]
-    #mels = array([0,200,400,630,920,1270,1720,2320,3200])/6.25
-    mels = array([0,100,200,300,400,515,630,780,920,1095,1270,1495,1720,2020,2320,2769,3200])/6.25
+    mels = array([0,100,200,300,400,515,630,780,920,1095,1270,1495,1720,\
+    2020,2320,2769,3200])/6.25
     
     
     plot_type = popup.plot_type
@@ -113,9 +111,9 @@ def get_audio_data():
     
     if word in word_list:
         for i, sound in enumerate(word_list[word]):
-            word_shape[45-(i*3)] = sound_fft_bank[word_list[word][-(i+1)]]
-            word_shape[45-((i*3)+1)] = sound_fft_bank[word_list[word][-(i+1)]]
-            word_shape[45-((i*3)+2)] = sound_fft_bank[word_list[word][-(i+1)]]
+            word_shape[45-(i*3)] = sound_fft_bank[word_list[word][-(i+1)]]*4
+            word_shape[45-((i*3)+1)] = sound_fft_bank[word_list[word][-(i+1)]]*4
+            word_shape[45-((i*3)+2)] = sound_fft_bank[word_list[word][-(i+1)]]*4
             pronunciation = pronunciation + sound + " "
         pronunciation = [pronunciation]
     
@@ -125,17 +123,29 @@ def get_audio_data():
         else:
             bucket_scores.append(sum(sound_fft[mels[i-1]:x]))
     
+    if popup.model_type == 'Monothongs':
+        forest = mono 
+    elif popup.model_type == 'Fricatives': 
+        forest = frics  
+    elif popup.model_type == 'Diphthongs':
+        forest = dip
+    elif popup.model_type == 'Stops':
+        forest = stops
+    else:
+        forest = other  
+    
     if bucket_scores[0] > 5:
         classification =  forest.predict(bucket_scores)
         if pronunciation == '':
             pronunciation = classification
         else:
-            pronunciation = pronunciation[0] + '--' + classification
+            pronunciation = pronunciation[0] + '--' + classification    
         
     if pronunciation == '':
         pronunciation = ['Word Visualizer']
         
-    return (array(bucket_scores), normalized_data, pronunciation, plot_type, sound_fft[:len(sound_fft)/2], word_shape)
+    return (array(bucket_scores), normalized_data, pronunciation, plot_type,\
+    sound_fft[:len(sound_fft)/2], word_shape)
 
 def _create_plot_component(obj):
     # Setup the spectrum plot
@@ -149,8 +159,10 @@ def _create_plot_component(obj):
 
     obj.spectrum_plot = Plot(obj.spectrum_data)
     
-    obj.spectrum_plot.plot(("frequency", "background"), value_scale="linear", type='bar', bar_width=0.8, color='auto')
-    obj.spectrum_plot.plot(("frequency", "amplitude"), value_scale="linear", name="Spectrum", type='bar', bar_width=0.8, color='auto')#[0]
+    obj.spectrum_plot.plot(("frequency", "background"), value_scale="linear",\
+    type='bar', bar_width=0.8, color='auto')
+    obj.spectrum_plot.plot(("frequency", "amplitude"), value_scale="linear",\
+    name="Spectrum", type='bar', bar_width=0.8, color='auto')#[0]
     obj.spectrum_plot.padding = 50
     obj.spectrum_plot.title = "Spectrum"
     spec_range = obj.spectrum_plot.plots.values()[0][0].value_mapper.range
@@ -167,14 +179,16 @@ def _create_plot_component(obj):
     obj.dum_spectrum_data.set_data('amplitude', dum_empty_amplitude)
 
     obj.dum_spectrum_plot = Plot(obj.dum_spectrum_data)
-    spec_renderer = obj.dum_spectrum_plot.plot(("frequency", "amplitude"), name="Spectrum",
-                           color="red")[0]
+    spec_renderer = obj.dum_spectrum_plot.plot(("frequency", "amplitude"),
+    name="Spectrum",color="red")[0]
     
     values = [zeros(NUM_SAMPLES/4) for i in xrange(SPECTROGRAM_LENGTH)]
     
     p = WaterfallRenderer(index = spec_renderer.index, values = values,
-            index_mapper = LinearMapper(range = obj.dum_spectrum_plot.index_mapper.range),
-            value_mapper = LinearMapper(range = DataRange1D(low=0, high=SPECTROGRAM_LENGTH)),
+            index_mapper = LinearMapper(range = obj.dum_spectrum_plot.\
+            index_mapper.range),
+            value_mapper = LinearMapper(range = DataRange1D(low=0,\
+            high=SPECTROGRAM_LENGTH)),
             y2_mapper = LinearMapper(low_pos=0, high_pos=8,
                             range=DataRange1D(low=0, high=15)),
             )
@@ -189,8 +203,10 @@ def _create_plot_component(obj):
     
     values2 = [zeros(NUM_SAMPLES/4) for i in xrange(SPECTROGRAM_LENGTH)]
     p2 = WaterfallRenderer(index = spec_renderer.index, values = values2,
-            index_mapper = LinearMapper(range = obj.dum_spectrum_plot.index_mapper.range),
-            value_mapper = LinearMapper(range = DataRange1D(low=0, high=SPECTROGRAM_LENGTH)),
+            index_mapper = LinearMapper(range = obj.dum_spectrum_plot.\
+            index_mapper.range),
+            value_mapper = LinearMapper(range = DataRange1D(low=0,\
+            high=SPECTROGRAM_LENGTH)),
             y2_mapper = LinearMapper(low_pos=0, high_pos=8,
                             range=DataRange1D(low=0, high=15)),
             )
@@ -217,7 +233,8 @@ def _create_plot_component(obj):
 class TimerController(HasTraits):
 
     def onTimer(self, *args):
-        spectrum, time, classification, plot_type, sound_fft, word_shape = get_audio_data()
+        spectrum, time, classification, plot_type, sound_fft, word_shape =\
+        get_audio_data()
         self.spectrum_data.set_data('amplitude', spectrum)
         self.spectrum_plot.title = classification[0]
         self.spectrum_data.set_data('background',background_dict[plot_type])
@@ -258,17 +275,20 @@ class WaterfallRenderer(LinePlot):
             values = self.values
 
             numindex = len(index)
-            if numindex == 0 or all(len(v)==0 for v in values) or all(numindex != len(v) for v in values):
+            if numindex == 0 or all(len(v)==0 for v in values) or\
+            all(numindex != len(v) for v in values):
                 self._cached_data_pts = []
                 self._cache_valid = True
 
-            self._cached_data_pts = [transpose(array((index, v))) for v in values]
+            self._cached_data_pts = \
+            [transpose(array((index, v))) for v in values]
             self._cache_value = True
         return
 
     def get_screen_points(self):
         self._gather_points()
-        return [self.map_screen(pts, i) for i, pts in enumerate(self._cached_data_pts)]
+        return [self.map_screen(pts, i) for i, pts in enumerate\
+        (self._cached_data_pts)]
 
     def map_screen(self, data_array, data_offset=None):
         """ data_offset, if provided, is a float that will be mapped
@@ -295,16 +315,14 @@ class WaterfallRenderer(LinePlot):
 class Demo(HasTraits):
 
     plot = Instance(Component)
-
     controller = Instance(TimerController, ())
-
     timer = Instance(Timer)
     
-    plot_type = Enum("AA", "AE","AH", "AO", "EH", "ER", "EY", "IH", "IY", "OW", "UH", "UW")
-    
-    #model_type = Enum('Fricative',
-    
-    word = Str("hello")
+    plot_type = Enum("AA", "AE","AH", "AO", "EH", "ER", "EY", "IH",
+    "IY", "OW", "UH", "UW")    
+    model_type = Enum('Monothongs','Fricatives', 'Diphthongs', 'Stops',
+    'Others')     
+    word = Str("hello(A)")
 
     traits_view = View(
                     Group(
@@ -312,6 +330,7 @@ class Demo(HasTraits):
                              show_label=False),
                         orientation = "vertical"),
                         Item(name='plot_type'),
+                        Item(name='model_type'),
                         Item(name='word'),
                     resizable=True, title=title,
                     width=size[0], height=size[1]+25,
